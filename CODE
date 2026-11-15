@@ -1,0 +1,96 @@
+"""
+DMBI Experiment 8
+Bank Customer Churn System
+Association Rule Mining using Python (Apriori)
+
+IMPORTANT:
+The supplied Experiment 8 reference uses Groceries_dataset.csv,
+not a bank-customer churn dataset. This script preserves the
+reference experiment's actual dataset and Apriori workflow.
+"""
+
+import pandas as pd
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, association_rules
+
+# ------------------------------------------------------------
+# STEP 1: IMPORT LIBRARIES AND LOAD THE DATASET
+# ------------------------------------------------------------
+
+# Google Colab upload support; local execution reads from this folder.
+try:
+    from google.colab import files
+    uploaded = files.upload()
+    filename = next(iter(uploaded))
+except ImportError:
+    filename = "Groceries_dataset.csv"
+
+df = pd.read_csv(filename)
+
+print("Dataset loaded successfully!")
+print("\nFirst five rows:")
+print(df.head())
+print("\nDataset information:")
+print(df.info())
+print("\nMissing values:")
+print(df.isnull().sum())
+
+# Validate the columns expected by the supplied experiment.
+required_columns = {"Member_number", "Date", "itemDescription"}
+missing_columns = required_columns - set(df.columns)
+if missing_columns:
+    raise ValueError(
+        f"Dataset is missing required columns: {sorted(missing_columns)}. "
+        "Use the Groceries_dataset.csv file from the Experiment 8 reference."
+    )
+
+# ------------------------------------------------------------
+# STEP 2: PREPROCESS DATA INTO TRANSACTIONS
+# ------------------------------------------------------------
+
+# Remove rows where itemDescription is blank.
+df = df.dropna(subset=["itemDescription"]).copy()
+
+# Group items purchased by the same customer on the same date.
+transactions = (
+    df.groupby(["Member_number", "Date"])["itemDescription"]
+      .apply(list)
+      .tolist()
+)
+
+print("\nNumber of transactions:", len(transactions))
+
+# ------------------------------------------------------------
+# STEP 3: TRANSACTION ENCODING
+# Convert transaction lists into a Boolean True/False matrix.
+# ------------------------------------------------------------
+
+encoder = TransactionEncoder()
+encoded_array = encoder.fit(transactions).transform(transactions)
+
+encoded_df = pd.DataFrame(
+    encoded_array,
+    columns=encoder.columns_
+)
+
+print("\nFirst five rows of the encoded transaction matrix:")
+print(encoded_df.head())
+print("\nNumber of transactions:", len(encoded_df))
+print("Number of unique items:", len(encoded_df.columns))
+
+# ------------------------------------------------------------
+# STEP 4: GENERATE FREQUENT ITEMSETS USING APRIORI
+# Minimum support 0.0003 = 0.03%, as in the supplied PDF.
+# ------------------------------------------------------------
+
+MIN_SUPPORT = 0.0003
+
+frequent_itemsets = apriori(
+    encoded_df,
+    min_support=MIN_SUPPORT,
+    use_colnames=True
+)
+
+print("\nNumber of frequent itemsets:", len(frequent_itemsets))
+
+# ------------------------------------------------------------
